@@ -1,0 +1,5 @@
+{
+  "name": "Memory & Confidence Lab",
+  "description": "A cognitive psychology experiment app designed to measure the relationship between metacognitive confidence and actual memory performance through word-pair association tasks.",
+  "requestFramePermissions": []
+}
