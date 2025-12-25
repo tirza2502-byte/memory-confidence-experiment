@@ -6,24 +6,395 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ניסוי זיכרון</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Assistant', 'Inter', sans-serif;
+            font-family: 'Assistant', sans-serif;
             background-color: #f9fafb;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 1rem;
+        }
+        .container-box {
+            max-width: 42rem;
+            width: 100%;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            padding: 2rem;
+            overflow: hidden;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            box-shadow: 0 0 2px 0 rgba(0,0,0,0.5);
+            margin-top: -6px;
         }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="app" class="container-box">
+        <!-- Content will be injected here by JavaScript -->
+    </div>
+
+    <script>
+        // --- Constants & Data ---
+        const WORD_PAIRS = [
+            { word1: 'חתול', word2: 'כלב' },
+            { word1: 'ציפור', word2: 'מחשב' },
+            { word1: 'גרב', word2: 'נעל' },
+            { word1: 'אנייה', word2: 'כלנית' },
+            { word1: 'ענן', word2: 'שמיים' },
+            { word1: 'מפית', word2: 'דלי' },
+            { word1: 'ביצה', word2: 'תרנגולת' },
+            { word1: 'כסא', word2: 'אריה' }
+        ];
+
+        const VERBAL_PROBLEMS = [
+            { options: ['כלב', 'חתול', 'אריה', 'שולחן'], correctAnswer: 'שולחן' },
+            { options: ['תפוח', 'בננה', 'מלפפון', 'דובדבן'], correctAnswer: 'מלפפון' },
+            { options: ['ירוק', 'כחול', 'אדום', 'רחוב'], correctAnswer: 'רחוב' },
+            { options: ['ספר', 'עט', 'מחברת', 'גלידה'], correctAnswer: 'גלידה' }
+        ];
+
+        const LEARNING_DURATION_MS = 3000;
+
+        // --- App State ---
+        let state = {
+            phase: 'START', // START, LEARNING, RATING, DISTRACTION, TEST, RESULTS
+            currentIndex: 0,
+            trials: WORD_PAIRS.map(p => ({ ...p, confidence: 50, response: '', accuracy: 0 })),
+            sliderMoved: false
+        };
+
+        const appEl = document.getElementById('app');
+
+        // --- Core Functions ---
+        function setState(newState) {
+            state = { ...state, ...newState };
+            render();
+        }
+
+        function render() {
+            appEl.innerHTML = '';
+            const container = document.createElement('div');
+            container.className = 'animate-fadeIn';
+
+            switch (state.phase) {
+                case 'START':
+                    renderStart(container);
+                    break;
+                case 'LEARNING':
+                    renderLearning(container);
+                    break;
+                case 'RATING':
+                    renderRating(container);
+                    break;
+                case 'DISTRACTION':
+                    renderDistraction(container);
+                    break;
+                case 'TEST':
+                    renderTest(container);
+                    break;
+                case 'RESULTS':
+                    renderResults(container);
+                    break;
+            }
+            appEl.appendChild(container);
+        }
+
+        // --- Phase Renderers ---
+
+        function renderStart(container) {
+            container.innerHTML = `
+                <div class="text-center space-y-8">
+                    <div class="space-y-4">
+                        <h1 class="text-4xl font-bold text-gray-900">ניסוי זיכרון</h1>
+                        <p class="text-lg text-gray-600 leading-relaxed max-w-lg mx-auto">
+                            ברוכים הבאים למעבדה לפסיכולוגיה קוגניטיבית. ניסוי זה מודד את היכולת שלכם לזכור צמדי מילים ואת המודעות שלכם לביצועי הזיכרון שלכם.
+                        </p>
+                    </div>
+                    <div class="bg-blue-50 p-6 rounded-xl text-right space-y-3 border border-blue-100">
+                        <h2 class="font-semibold text-blue-900 text-lg">למה לצפות:</h2>
+                        <ul class="space-y-2 text-blue-800 list-disc list-inside">
+                            <li>למדו 8 צמדי מילים במשך 3 שניות כל אחד.</li>
+                            <li>דרגו את הסיכוי שלכם לזכור את צמד המילים.</li>
+                            <li>בצעו משימה מילולית כדי לנקות את זיכרון העבודה.</li>
+                            <li>שחזרו את המילים החסרות במבחן הסופי.</li>
+                        </ul>
+                    </div>
+                    <button id="startBtn" class="w-full md:w-auto px-12 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 text-lg">
+                        התחל ניסוי
+                    </button>
+                </div>
+            `;
+            container.querySelector('#startBtn').onclick = () => setState({ phase: 'LEARNING', currentIndex: 0 });
+        }
+
+        function renderLearning(container) {
+            const pair = state.trials[state.currentIndex];
+            container.innerHTML = `
+                <div class="space-y-12 py-8 flex flex-col items-center">
+                    <div class="text-sm font-medium text-gray-400 uppercase tracking-widest">
+                        צמד ${state.currentIndex + 1} מתוך ${state.trials.length}
+                    </div>
+                    <div class="text-center h-24 flex flex-col justify-center">
+                        <h2 class="text-5xl font-bold text-gray-800">${pair.word1} &mdash; ${pair.word2}</h2>
+                    </div>
+                    <div class="h-24 w-full flex items-center justify-center">
+                         <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            `;
+            setTimeout(() => {
+                setState({ phase: 'RATING', sliderMoved: false });
+            }, LEARNING_DURATION_MS);
+        }
+
+        function renderRating(container) {
+            const pair = state.trials[state.currentIndex];
+            container.innerHTML = `
+                <div class="space-y-12 py-8 flex flex-col items-center">
+                    <div class="text-sm font-medium text-gray-400 uppercase tracking-widest">
+                        צמד ${state.currentIndex + 1} מתוך ${state.trials.length}
+                    </div>
+                    <div class="text-center h-24 flex flex-col justify-center opacity-50">
+                        <h2 class="text-5xl font-bold text-gray-800">${pair.word1} &mdash; ${pair.word2}</h2>
+                    </div>
+                    <div class="w-full max-w-md space-y-8">
+                        <div class="space-y-4">
+                            <label class="block text-center text-xl font-medium text-gray-700">
+                                דרגו את הסיכוי שלכם לזכור את צמד המילים:
+                            </label>
+                            <div class="relative pt-10 pb-6" dir="ltr">
+                                <div class="flex justify-between text-sm text-gray-500 mb-2">
+                                    <span dir="rtl">0% (כלל לא)</span>
+                                    <span dir="rtl">100% (בטוח)</span>
+                                </div>
+                                <input type="range" id="confidenceSlider" min="0" max="100" value="${state.trials[state.currentIndex].confidence}" 
+                                    class="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                                <div class="text-center mt-4" dir="rtl">
+                                    <span id="confidenceVal" class="text-3xl font-bold text-blue-600">${state.trials[state.currentIndex].confidence}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="nextBtn" disabled class="w-full py-4 rounded-xl font-bold text-lg transition-all bg-gray-100 text-gray-400 cursor-not-allowed">
+                            ${state.currentIndex === state.trials.length - 1 ? 'סיום למידה' : 'לצמד הבא'}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const slider = container.querySelector('#confidenceSlider');
+            const valDisplay = container.querySelector('#confidenceVal');
+            const nextBtn = container.querySelector('#nextBtn');
+
+            slider.oninput = (e) => {
+                const val = e.target.value;
+                valDisplay.innerText = val + '%';
+                state.trials[state.currentIndex].confidence = parseInt(val);
+                if (!state.sliderMoved) {
+                    state.sliderMoved = true;
+                    nextBtn.disabled = false;
+                    nextBtn.className = 'w-full py-4 rounded-xl font-bold text-lg transition-all bg-blue-600 text-white shadow-lg hover:bg-blue-700';
+                }
+            };
+
+            nextBtn.onclick = () => {
+                if (state.currentIndex < state.trials.length - 1) {
+                    setState({ phase: 'LEARNING', currentIndex: state.currentIndex + 1 });
+                } else {
+                    setState({ phase: 'DISTRACTION', currentIndex: 0 });
+                }
+            };
+        }
+
+        function renderDistraction(container) {
+            const problem = VERBAL_PROBLEMS[state.currentIndex];
+            container.innerHTML = `
+                <div class="space-y-12 py-8 text-center">
+                    <div class="space-y-4">
+                        <h2 class="text-2xl font-bold text-gray-800">משימה מילולית</h2>
+                        <p class="text-gray-500">בחרו את המילה היוצאת דופן מתוך 4 המילים הבאות.</p>
+                        <div class="text-sm font-medium text-gray-400">
+                            משימה ${state.currentIndex + 1} מתוך ${VERBAL_PROBLEMS.length}
+                        </div>
+                    </div>
+                    <div class="max-w-md mx-auto space-y-8">
+                        <div class="grid grid-cols-2 gap-4" id="optionsGrid">
+                            ${problem.options.map(opt => `
+                                <button class="option-btn py-6 px-4 rounded-xl border-2 transition-all text-2xl font-bold border-gray-200 hover:border-gray-300 text-gray-700" data-value="${opt}">
+                                    ${opt}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <button id="distractionNext" disabled class="w-full py-4 rounded-xl font-bold text-lg transition-all bg-gray-100 text-gray-400 cursor-not-allowed">
+                            ${state.currentIndex === VERBAL_PROBLEMS.length - 1 ? 'סיום' : 'למשימה הבאה'}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            let selected = null;
+            const nextBtn = container.querySelector('#distractionNext');
+            const btns = container.querySelectorAll('.option-btn');
+
+            btns.forEach(btn => {
+                btn.onclick = () => {
+                    btns.forEach(b => b.className = 'option-btn py-6 px-4 rounded-xl border-2 transition-all text-2xl font-bold border-gray-200 hover:border-gray-300 text-gray-700');
+                    btn.className = 'option-btn py-6 px-4 rounded-xl border-2 transition-all text-2xl font-bold border-blue-500 bg-blue-50 text-blue-700 scale-105';
+                    selected = btn.getAttribute('data-value');
+                    nextBtn.disabled = false;
+                    nextBtn.className = 'w-full py-4 rounded-xl font-bold text-lg transition-all bg-blue-600 text-white shadow-lg hover:bg-blue-700';
+                };
+            });
+
+            nextBtn.onclick = () => {
+                if (state.currentIndex < VERBAL_PROBLEMS.length - 1) {
+                    setState({ currentIndex: state.currentIndex + 1 });
+                } else {
+                    setState({ phase: 'TEST', currentIndex: 0 });
+                }
+            };
+        }
+
+        function renderTest(container) {
+            const pair = state.trials[state.currentIndex];
+            container.innerHTML = `
+                <div class="space-y-12 py-8 text-center">
+                    <div class="space-y-2">
+                        <h2 class="text-2xl font-bold text-gray-800">מבחן זיכרון</h2>
+                        <p class="text-gray-500">כתבו את המילה המשלימה עבור המילה המוצגת.</p>
+                        <div class="text-sm font-medium text-gray-400">
+                            מבחן ${state.currentIndex + 1} מתוך ${state.trials.length}
+                        </div>
+                    </div>
+                    <form id="testForm" class="max-w-md mx-auto space-y-12">
+                        <div class="flex flex-col items-center gap-4">
+                            <div class="text-gray-400 uppercase tracking-widest text-sm font-semibold">רמז:</div>
+                            <div class="text-6xl font-bold text-blue-600">${pair.word1}</div>
+                            <div class="text-gray-300 text-4xl">&mdash;</div>
+                        </div>
+                        <div class="space-y-6">
+                            <input type="text" id="testInput" autofocus class="w-full text-center text-3xl font-bold py-4 border-b-4 border-gray-200 focus:border-blue-500 outline-none transition-colors" placeholder="כתבו כאן...">
+                            <button type="submit" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-blue-700 transition-all active:scale-95">
+                                ${state.currentIndex === state.trials.length - 1 ? 'סיום מבחן' : 'למילה הבאה'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            const form = container.querySelector('#testForm');
+            const input = container.querySelector('#testInput');
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                const resp = input.value.trim();
+                state.trials[state.currentIndex].response = resp;
+                state.trials[state.currentIndex].accuracy = (resp === pair.word2) ? 100 : 0;
+
+                if (state.currentIndex < state.trials.length - 1) {
+                    setState({ currentIndex: state.currentIndex + 1 });
+                } else {
+                    setState({ phase: 'RESULTS' });
+                }
+            };
+        }
+
+        function renderResults(container) {
+            const avgAcc = state.trials.reduce((a, b) => a + b.accuracy, 0) / state.trials.length;
+            const avgConf = state.trials.reduce((a, b) => a + b.confidence, 0) / state.trials.length;
+
+            container.innerHTML = `
+                <div class="space-y-10">
+                    <div class="text-center space-y-4">
+                        <h1 class="text-3xl font-bold text-gray-900">התוצאות שלך</h1>
+                        <div class="flex justify-center gap-12">
+                            <div class="text-center">
+                                <div class="text-3xl font-black text-blue-600">${avgAcc.toFixed(0)}%</div>
+                                <div class="text-xs font-semibold text-gray-400 uppercase">דיוק ממוצע</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-3xl font-black text-purple-600">${avgConf.toFixed(0)}%</div>
+                                <div class="text-xs font-semibold text-gray-400 uppercase">ביטחון ממוצע</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                        <table class="w-full text-right border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 uppercase text-xs font-bold tracking-wider">
+                                    <th class="px-6 py-4 border-b">מילה ראשונה</th>
+                                    <th class="px-6 py-4 border-b">תשובה נכונה</th>
+                                    <th class="px-6 py-4 border-b">התשובה שלך</th>
+                                    <th class="px-6 py-4 border-b">ביטחון</th>
+                                    <th class="px-6 py-4 border-b text-center">דיוק</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${state.trials.map(t => `
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4 font-medium text-gray-900">${t.word1}</td>
+                                        <td class="px-6 py-4 text-gray-600">${t.word2}</td>
+                                        <td class="px-6 py-4 text-gray-800">${t.response || '<span class="text-gray-300 italic">ללא תשובה</span>'}</td>
+                                        <td class="px-6 py-4 text-gray-600">${t.confidence}%</td>
+                                        <td class="px-6 py-4 text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${t.accuracy === 100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                                ${t.accuracy}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex flex-col md:flex-row justify-center gap-4">
+                        <button id="downloadCsv" class="flex items-center justify-center gap-2 px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            הורדה לאקסל
+                        </button>
+                        <button id="restartBtn" class="px-8 py-3 border-2 border-gray-200 hover:border-gray-300 text-gray-600 font-bold rounded-xl transition-all">
+                            התחל ניסוי מחדש
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            container.querySelector('#downloadCsv').onclick = () => {
+                const headers = ['מילה ראשונה', 'תשובה נכונה', 'התשובה שלך', 'ביטחון', 'דיוק'];
+                const rows = state.trials.map(t => [t.word1, t.word2, t.response || '', t.confidence + '%', t.accuracy]);
+                const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                const BOM = '\uFEFF';
+                const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `תוצאות_ניסוי_זיכרון_${new Date().toLocaleDateString('he-IL')}.csv`;
+                link.click();
+            };
+
+            container.querySelector('#restartBtn').onclick = () => {
+                state.trials = WORD_PAIRS.map(p => ({ ...p, confidence: 50, response: '', accuracy: 0 }));
+                setState({ phase: 'START', currentIndex: 0 });
+            };
+        }
+
+        // --- Init ---
+        render();
+    </script>
 </body>
 </html>
